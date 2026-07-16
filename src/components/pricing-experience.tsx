@@ -5,11 +5,15 @@ import Link from "next/link";
 import {
   ArrowRight,
   Check,
+  CheckCircle2,
   Coins,
   Gauge,
+  LoaderCircle,
   LockKeyhole,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
+  XCircle,
 } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
@@ -82,17 +86,22 @@ const pricingFaqs = [
   {
     question: "Do unused credits expire or roll over?",
     answer:
-      "Credits are stored on your account and do not expire in this release. Expiry, refunds, and rollover rules will be published before checkout opens.",
+      "Credits are stored on your account and do not expire during this test release. Test payments have no cash value. Refund and dispute rules will be finalized before live payments open.",
   },
   {
     question: "Is a real payment processed on this page?",
     answer:
-      "No. Checkout is not open yet, so pack buttons remain disabled and no payment information is collected.",
+      "No real charge is made while the checkout is in Stripe test mode. Use Stripe's 4242 4242 4242 4242 test card with any future expiry date and CVC. Do not enter a real card during testing.",
   },
   {
     question: "Is the current credit limit secure?",
     answer:
-      "Yes. Free usage, balances, holds, settlements, and refunds are enforced by the server and recorded in an append-only credit ledger.",
+      "Yes. A signed Stripe webhook is the only path that can grant purchased credits. Duplicate events and Checkout Sessions are ignored, and every successful grant is recorded in the account ledger.",
+  },
+  {
+    question: "When do purchased credits appear?",
+    answer:
+      "Stripe returns you to this page after payment, but the return page does not grant credits. The balance updates only after the signed payment webhook is verified and committed, which normally takes a few seconds.",
   },
 ];
 
@@ -101,12 +110,17 @@ function modelShortName(model: OpenRouterModel) {
 }
 
 export function PricingExperience() {
-  const { entitlement, openAuth } = useAuth();
+  const { user, entitlement, openAuth, refreshEntitlement } = useAuth();
   const [models, setModels] = useState<OpenRouterModel[]>(FALLBACK_XAI_MODELS);
   const [modelSource, setModelSource] = useState<"live" | "fallback">("fallback");
   const [selectedModelId, setSelectedModelId] = useState(DEFAULT_XAI_MODEL);
   const [inputTokens, setInputTokens] = useState(TYPICAL_INPUT_TOKENS);
   const [outputTokens, setOutputTokens] = useState(TYPICAL_OUTPUT_TOKENS);
+  const [checkoutPackId, setCheckoutPackId] = useState<string | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<{
+    type: "success" | "cancelled" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,6 +146,81 @@ export function PricingExperience() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("checkout");
+    if (status === "cancelled") {
+      queueMicrotask(() =>
+        setCheckoutNotice({
+          type: "cancelled",
+          message: "Checkout was cancelled. Your balance was not changed.",
+        }),
+      );
+      return;
+    }
+    if (status !== "success") return;
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    queueMicrotask(() =>
+      setCheckoutNotice({
+        type: "success",
+        message: "Test payment completed. Verifying the webhook and refreshing your credits…",
+      }),
+    );
+
+    async function refresh(attempt = 0) {
+      await refreshEntitlement();
+      if (stopped || attempt >= 6) return;
+      timer = setTimeout(() => void refresh(attempt + 1), 1500 + attempt * 500);
+    }
+    void refresh();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [refreshEntitlement]);
+
+  async function startCheckout(packId: string) {
+    if (!user) {
+      openAuth("signup");
+      return;
+    }
+
+    setCheckoutPackId(packId);
+    setCheckoutNotice(null);
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packId, requestId: crypto.randomUUID() }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { url?: string; error?: string }
+        | null;
+
+      if (response.status === 401) {
+        openAuth("login");
+        return;
+      }
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error || "Checkout could not be opened.");
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      setCheckoutNotice({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Checkout could not be opened. Please try again.",
+      });
+    } finally {
+      setCheckoutPackId(null);
+    }
+  }
+
   const selectedModel = useMemo(
     () => models.find((model) => model.id === selectedModelId) || models[0],
     [models, selectedModelId],
@@ -154,13 +243,29 @@ export function PricingExperience() {
         <div className="mx-auto max-w-[1440px] px-5 pb-20 pt-16 sm:px-8 lg:pb-28 lg:pt-24">
           <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border py-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
-              Pricing preview
+              Stripe test checkout
             </span>
             <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-              <ShieldAlert className="size-3.5 text-accent" />
-              No payment is processed. Usage limits and balances are server-enforced.
+              <ShieldCheck className="size-3.5 text-success" />
+              Test mode only. No real charges. Do not enter a real card.
             </span>
           </div>
+
+          {checkoutNotice ? (
+            <div
+              className="mt-6 flex items-start gap-3 border border-border bg-surface/70 px-4 py-4 text-sm text-muted-foreground"
+              role={checkoutNotice.type === "error" ? "alert" : "status"}
+            >
+              {checkoutNotice.type === "success" ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+              ) : checkoutNotice.type === "cancelled" ? (
+                <XCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ShieldAlert className="mt-0.5 size-4 shrink-0 text-[#ff9d9d]" />
+              )}
+              <span>{checkoutNotice.message}</span>
+            </div>
+          ) : null}
 
           <div className="mt-16 grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div>
@@ -170,8 +275,8 @@ export function PricingExperience() {
               </h1>
               <p className="mt-7 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
                 Grok Build 0.1 is the default basic model. The packs below show
-                planned credit pricing; advanced models unlock only when a verified
-                account has a positive server-side balance.
+                test-mode credit pricing. Sign in, complete the secure test checkout,
+                and your credit balance will update automatically.
               </p>
             </div>
 
@@ -291,12 +396,25 @@ export function PricingExperience() {
                   type="button"
                   variant={pack.id === "pro" ? "primary" : "outline"}
                   className="mt-auto"
-                  disabled
+                  disabled={checkoutPackId !== null}
+                  onClick={() => void startCheckout(pack.id)}
                 >
-                  Checkout coming soon
+                  {checkoutPackId === pack.id ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : null}
+                  {checkoutPackId === pack.id
+                    ? "Opening Stripe…"
+                    : user
+                      ? "Buy with test checkout"
+                      : "Sign in to buy"}
                 </Button>
               </article>
             ))}
+          </div>
+
+          <div className="mt-6 flex flex-col justify-between gap-3 border border-border bg-surface/25 px-5 py-4 text-xs leading-6 text-muted-foreground sm:flex-row sm:items-center">
+            <span>Stripe test card: 4242 4242 4242 4242 · any future expiry · any CVC</span>
+            <span className="font-medium text-accent">Test credits have no cash value</span>
           </div>
 
         </div>
