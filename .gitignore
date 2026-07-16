@@ -31,5 +31,8 @@ yarn-error.log*
 .playwright-cli/
 output/
 
+# local research notes (kept on disk, not part of the deployment artifact)
+/grok-model-api-solution-report-2026-07-16.md
+
 # typescript
 *.tsbuildinfo

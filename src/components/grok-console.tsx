@@ -652,9 +652,9 @@ export function GrokConsole() {
       <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-[10px] leading-5 text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span className="inline-flex items-center gap-2">
           <ShieldCheck className="size-3.5 text-success" />
-          API key remains server-side. Conversation history stays in this browser.
+          Conversations stay private to this browser until you clear them.
         </span>
-        <span>Free questions and credits are enforced on the server.</span>
+        <span>Three free questions. Credits unlock advanced models.</span>
       </div>
     </div>
   );

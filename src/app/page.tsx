@@ -266,6 +266,25 @@ export default function Home() {
         <section id="try-grok" className="grok-playground-zone border-b border-border bg-[#030303]">
           <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:py-28">
             <div className="border border-border bg-[#070707] p-5 sm:p-8 lg:p-10">
+              <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-7 place-items-center border border-accent/50 bg-accent/10 text-accent">
+                    <CircleDot className="size-3.5" />
+                  </span>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+                    Live model console
+                  </p>
+                </div>
+                <a
+                  href="https://openrouter.ai/x-ai"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  xAI models via OpenRouter
+                  <ArrowUpRight className="size-3.5" />
+                </a>
+              </div>
               <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
                 <div>
                   <p className="section-eyebrow">Interactive workspace</p>
@@ -273,10 +292,9 @@ export default function Home() {
                     Ask Grok. Know the model, limit, and cost before you send.
                   </h2>
                   <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
-                    This is the live Grok Playground—not another guide block. Start
-                    with three guest questions on Grok Build 0.1, see your remaining
-                    balance at all times, and sign in when you want an account-linked
-                    balance.
+                    Ask coding questions with three free guest questions on Grok Build
+                    0.1. Your remaining questions and credit balance stay visible
+                    while you work.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 border-l border-t border-border sm:grid-cols-4">
@@ -284,7 +302,7 @@ export default function Home() {
                     ["Provider", "OpenRouter"],
                     ["Default", "Grok Build 0.1"],
                     ["Guest access", "3 questions"],
-                    ["Billing", "Server tracked"],
+                    ["Usage", "Credits + free access"],
                   ].map(([label, value]) => (
                     <div className="border-b border-r border-border bg-[#0b0b0b] p-4" key={label}>
                       <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">

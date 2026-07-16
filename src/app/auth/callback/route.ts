@@ -8,7 +8,14 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const requestedNext = url.searchParams.get("next") || "/";
-  const next = requestedNext.startsWith("/") ? requestedNext : "/";
+  // Keep redirects same-origin. In particular, `//host.example` is an
+  // absolute URL in the URL constructor even though it starts with `/`.
+  const next =
+    requestedNext.startsWith("/") &&
+    !requestedNext.startsWith("//") &&
+    ["/", "/pricing"].includes(new URL(requestedNext, url.origin).pathname)
+      ? requestedNext
+      : "/";
 
   if (code) {
     const { url: supabaseUrl, publishableKey } = getPublicSupabaseEnv();
