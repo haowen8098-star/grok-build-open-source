@@ -97,6 +97,16 @@ export const faqs: FaqItem[] = [
       "OpenRouter bills by tokens according to the selected model’s current input and output rates. The console shows both prices per one million tokens directly from the live model directory. A long conversation costs more because earlier messages are sent again as context, so clear the thread when starting an unrelated task and avoid pasting files or logs that are not needed.",
   },
   {
+    question: "How do the three free questions and account credits work?",
+    answer:
+      "A guest can complete three questions with the default Grok Build 0.1 model. The allowance is enforced on the server with a signed guest identifier and a hashed network identifier, so changing browser-side storage does not restore it. A failed or interrupted provider request releases the reserved question. Signed-in accounts receive their own server-side allowance and credit balance. Advanced models are locked until the account has credits; when paid credit packs launch, a request will reserve an estimated amount and settle against the provider’s reported token cost at the published retail multiplier.",
+  },
+  {
+    question: "How does email registration and sign-in work?",
+    answer:
+      "Registration uses Supabase Auth with email verification enabled. After creating an account, open the confirmation message and return through this site’s secure callback before signing in with the same email and password. The session is stored in secure Supabase cookies and refreshed by the Next.js server boundary. Password-reset links use the same verified callback. Google sign-in is shown only as a disabled preview and cannot be used in this release.",
+  },
+  {
     question: "Is the OpenRouter API key exposed to visitors?",
     answer:
       "No. The browser sends messages to this site’s server-side /api/chat route, and that route adds the OpenRouter Bearer token before forwarding the request. The key is stored in .env.local, excluded from Git, and absent from the browser JavaScript bundle. Visitors can use the interface without seeing or copying the provider credential.",
@@ -104,7 +114,7 @@ export const faqs: FaqItem[] = [
   {
     question: "Where is my conversation stored?",
     answer:
-      "The visible chat history is stored in localStorage in the current browser so it can survive a refresh. It is not written to this site’s database because this release has no account or persistence backend. Prompts still travel through this server, OpenRouter, and the selected model provider for inference; use Clear conversation to remove the local copy.",
+      "The visible chat history stays in localStorage in the current browser so it can survive a refresh; this release does not copy message content into the account database. Supabase stores authentication, free-question usage, credit balance, and an accounting record for each model request, but not the conversation transcript. Prompts still travel through this server, OpenRouter, and the selected model provider for inference. Use Clear conversation to remove the browser copy, and do not paste material you are not authorized to send to those providers.",
   },
   {
     question: "Can this web console edit my repository or run commands?",
@@ -139,7 +149,7 @@ export const faqs: FaqItem[] = [
   {
     question: "Does this site call the Grok or OpenRouter API?",
     answer:
-      "Yes. The Grok Console sends text conversations through a validated server-side OpenRouter proxy to the selected xAI model and streams the answer back with SSE. Requests are limited to x-ai/ model IDs, a maximum conversation size, and a lightweight per-minute rate guard. The current interface supports text chat and Markdown responses; image uploads, file uploads, tool execution, accounts, and billing are not included.",
+      "Yes. The Grok Console sends text conversations through a validated server-side OpenRouter proxy to the selected xAI model and streams the answer back with SSE. Requests are limited to x-ai/ model IDs, a maximum conversation size, a per-minute guard, and a server-side free-question or credit reservation. Supabase provides email authentication and the usage ledger. The current interface supports text chat and Markdown responses; image uploads, file uploads, tool execution, payment checkout, and automatic credit purchases are not included yet.",
   },
   {
     question: "What happens when OpenRouter returns an error?",

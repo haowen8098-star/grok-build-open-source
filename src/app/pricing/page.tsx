@@ -27,8 +27,8 @@ export default function PricingPage() {
       <footer className="border-t border-border bg-surface/30">
         <div className="mx-auto flex max-w-[1440px] flex-col justify-between gap-6 px-5 py-10 text-xs text-muted-foreground sm:px-8 md:flex-row md:items-end">
           <p className="max-w-2xl leading-6">
-            Front-end pricing preview. No checkout, account, or server-side credit
-            enforcement is connected. Model inference is still routed through OpenRouter.
+            Account balances and free questions are enforced server-side. Checkout is
+            coming later; no payment information is collected today.
           </p>
           <Link href="/" className="font-medium text-foreground hover:text-accent">
             Back to Grok Build guide

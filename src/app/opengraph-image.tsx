@@ -55,7 +55,7 @@ export default function Image() {
                 padding: "12px 14px",
               }}
             >
-              GB / OSS
+              GROK BUILDING
             </div>
             <div
               style={{

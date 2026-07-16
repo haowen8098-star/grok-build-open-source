@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { AuthProvider } from "@/components/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { siteConfig } from "@/lib/site-config";
 
@@ -23,9 +24,9 @@ export const metadata: Metadata = {
   title: "Grok Build Open Source: Source Code, Setup & How It Works",
   description: siteConfig.description,
   applicationName: siteConfig.name,
-  authors: [{ name: "Grok Build Open Source Guide" }],
-  creator: "Grok Build Open Source Guide",
-  publisher: "Grok Build Open Source Guide",
+  authors: [{ name: "Grok Building" }],
+  creator: "Grok Building",
+  publisher: "Grok Building",
   alternates: {
     canonical: "/",
   },
@@ -85,7 +86,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={geistSans.variable + " " + geistMono.variable}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </AuthProvider>
       </body>
     </html>
   );

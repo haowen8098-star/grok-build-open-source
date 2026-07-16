@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Grok Building">
   <rect width="64" height="64" fill="#050505"/>
-  <rect x="7" y="7" width="50" height="50" fill="none" stroke="#2a2a2a" stroke-width="2"/>
-  <path d="M19 23h9v4h-5v10h5v4h-9V23Zm17 0h9v18h-9v-4h5V27h-5v-4Z" fill="#ffd43b"/>
+  <rect x="5" y="5" width="54" height="54" fill="#090909" stroke="#303030" stroke-width="2"/>
+  <path d="M16 16h26v7H23v18h12v-5h-8v-7h15v19H16V16Z" fill="#f5f5f5"/>
+  <path d="m44 15 7 0-17 34h-8l18-34Z" fill="#ffd43b"/>
+  <rect x="46" y="44" width="6" height="6" fill="#22c55e"/>
 </svg>

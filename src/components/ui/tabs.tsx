@@ -29,7 +29,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "h-8 px-3 font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground transition-colors data-[state=active]:bg-surface-raised data-[state=active]:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
+        "h-8 px-3 text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors data-[state=active]:bg-surface-raised data-[state=active]:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
         className,
       )}
       {...props}

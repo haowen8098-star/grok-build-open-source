@@ -27,5 +27,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local QA artifacts
+.playwright-cli/
+output/
+
 # typescript
 *.tsbuildinfo

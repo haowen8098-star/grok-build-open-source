@@ -29,6 +29,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -45,17 +46,10 @@ import {
   type OpenRouterModel,
 } from "@/lib/openrouter-types";
 import {
-  readDemoEntitlement,
-  writeDemoEntitlement,
-} from "@/lib/client-entitlement";
-import {
-  EMPTY_DEMO_ENTITLEMENT,
   FREE_QUESTION_LIMIT,
   creditsPerMillion,
-  estimateConversationCredits,
   formatCredits,
   isPremiumModel,
-  type DemoEntitlement,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +60,6 @@ type ConsoleMessage = ChatMessagePayload & {
 };
 
 type ConsoleStatus = "idle" | "connecting" | "streaming";
-type BillingMode = "free" | "credits";
 
 const STORAGE_KEY = "grok-console-session-v1";
 const MODEL_STORAGE_KEY = "grok-console-model-v1";
@@ -108,6 +101,7 @@ function modelShortName(model: OpenRouterModel) {
 }
 
 export function GrokConsole() {
+  const { entitlement, openAuth, refreshEntitlement } = useAuth();
   const [models, setModels] = useState<OpenRouterModel[]>(FALLBACK_XAI_MODELS);
   const [modelSource, setModelSource] = useState<"live" | "fallback">("fallback");
   const [selectedModel, setSelectedModel] = useState(DEFAULT_XAI_MODEL);
@@ -115,12 +109,10 @@ export function GrokConsole() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<ConsoleStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [entitlement, setEntitlement] = useState<DemoEntitlement>(
-    EMPTY_DEMO_ENTITLEMENT,
-  );
   const [hydrated, setHydrated] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const chatViewportRef = useRef<HTMLDivElement | null>(null);
+  const restoredPremiumModelRef = useRef<string | null>(null);
 
   const activeModel = useMemo(
     () =>
@@ -131,16 +123,14 @@ export function GrokConsole() {
   );
 
   const isGenerating = status !== "idle";
-  const freeQuestionsRemaining = Math.max(
-    0,
-    FREE_QUESTION_LIMIT - entitlement.freeQuestionsUsed,
-  );
+  const freeQuestionsRemaining = entitlement.freeQuestionsRemaining;
   const premiumUnlocked = entitlement.credits > 0;
   const activeModelIsPremium = isPremiumModel(activeModel.id);
-  const accessError =
-    error?.includes("require credits") ||
-    error?.includes("free questions") ||
-    error?.includes("Add credits");
+  const accessError = error
+    ? /require credits|free questions|guest questions|add credits|sign in|signed-in/i.test(
+        error,
+      )
+    : false;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -172,8 +162,6 @@ export function GrokConsole() {
   useEffect(() => {
     let restoredMessages: ConsoleMessage[] = [];
     let restoredModel: string | null = null;
-    const restoredEntitlement = readDemoEntitlement();
-
     try {
       const storedMessages = localStorage.getItem(STORAGE_KEY);
       const storedModel = localStorage.getItem(MODEL_STORAGE_KEY);
@@ -194,13 +182,23 @@ export function GrokConsole() {
 
     queueMicrotask(() => {
       setMessages(restoredMessages);
-      setEntitlement(restoredEntitlement);
-      if (restoredModel && (!isPremiumModel(restoredModel) || restoredEntitlement.credits > 0)) {
-        setSelectedModel(restoredModel);
+      if (restoredModel) {
+        if (isPremiumModel(restoredModel)) {
+          restoredPremiumModelRef.current = restoredModel;
+        } else {
+          setSelectedModel(restoredModel);
+        }
       }
       setHydrated(true);
     });
   }, []);
+
+  useEffect(() => {
+    const restoredModel = restoredPremiumModelRef.current;
+    if (!hydrated || !premiumUnlocked || !restoredModel) return;
+    restoredPremiumModelRef.current = null;
+    queueMicrotask(() => setSelectedModel(restoredModel));
+  }, [hydrated, premiumUnlocked]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -211,11 +209,6 @@ export function GrokConsole() {
     if (!hydrated) return;
     localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
   }, [hydrated, selectedModel]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    writeDemoEntitlement(entitlement);
-  }, [entitlement, hydrated]);
 
   useEffect(() => {
     if (!hydrated || premiumUnlocked || !isPremiumModel(selectedModel)) return;
@@ -235,10 +228,7 @@ export function GrokConsole() {
     return () => controllerRef.current?.abort();
   }, []);
 
-  async function requestChat(
-    conversation: ConsoleMessage[],
-    billingMode: BillingMode,
-  ) {
+  async function requestChat(conversation: ConsoleMessage[]) {
     if (isGenerating || conversation.length === 0) return;
 
     const assistant = createMessage("assistant", "", selectedModel);
@@ -249,8 +239,6 @@ export function GrokConsole() {
     setError(null);
 
     let receivedText = false;
-    let responseText = "";
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -301,7 +289,6 @@ export function GrokConsole() {
           if (!content) return;
 
           receivedText = true;
-          responseText += content;
           setMessages((current) =>
             current.map((message) =>
               message.id === assistant.id
@@ -323,28 +310,7 @@ export function GrokConsole() {
       if (!receivedText) {
         throw new Error("The model completed without returning text.");
       }
-
-      if (billingMode === "free") {
-        setEntitlement((current) => ({
-          ...current,
-          freeQuestionsUsed: Math.min(
-            FREE_QUESTION_LIMIT,
-            current.freeQuestionsUsed + 1,
-          ),
-          updatedAt: current.updatedAt + 1,
-        }));
-      } else {
-        const chargedCredits = estimateConversationCredits(
-          activeModel,
-          conversation,
-          responseText,
-        );
-        setEntitlement((current) => ({
-          ...current,
-          credits: Math.max(0, current.credits - chargedCredits),
-          updatedAt: current.updatedAt + 1,
-        }));
-      }
+      await refreshEntitlement();
     } catch (requestError) {
       if (requestError instanceof DOMException && requestError.name === "AbortError") {
         setMessages((current) =>
@@ -370,35 +336,42 @@ export function GrokConsole() {
     }
   }
 
-  function getBillingMode(): BillingMode | null {
+  function canSendMessage() {
     if (activeModelIsPremium && !premiumUnlocked) {
-      setError("Advanced models require credits. Choose a pack on the pricing page.");
-      return null;
+      setError(
+        entitlement.authenticated
+          ? "Advanced models require credits. View pricing to continue."
+          : "Advanced models require a signed-in account with credits.",
+      );
+      return false;
     }
 
     if (!activeModelIsPremium && freeQuestionsRemaining > 0) {
-      return "free";
+      return true;
     }
 
     if (entitlement.credits <= 0) {
-      setError("Your three free questions are used. Add credits to continue.");
-      return null;
+      setError(
+        entitlement.authenticated
+          ? "Your three free questions are used. Add credits to continue."
+          : "Your three guest questions are used. Sign in to continue.",
+      );
+      return false;
     }
 
-    return "credits";
+    return true;
   }
 
   function sendMessage(event?: FormEvent, promptOverride?: string) {
     event?.preventDefault();
     const content = (promptOverride || input).trim();
     if (!content || isGenerating) return;
-    const billingMode = getBillingMode();
-    if (!billingMode) return;
+    if (!canSendMessage()) return;
 
     const userMessage = createMessage("user", content);
     const conversation = [...messages, userMessage];
     setInput("");
-    void requestChat(conversation, billingMode);
+    void requestChat(conversation);
   }
 
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -430,23 +403,27 @@ export function GrokConsole() {
     }
 
     if (lastUserIndex < 0) return;
-    const billingMode = getBillingMode();
-    if (!billingMode) return;
-    void requestChat(messages.slice(0, lastUserIndex + 1), billingMode);
+    if (!canSendMessage()) return;
+    void requestChat(messages.slice(0, lastUserIndex + 1));
   }
 
   return (
-    <div className="grok-console">
-      <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+    <div className="grok-console overflow-hidden border border-[#303030] bg-[#080808] shadow-[0_28px_80px_rgba(0,0,0,0.42)]">
+      <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border bg-[#0d0d0d] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5" aria-hidden="true">
             <span className="size-2 rounded-full bg-[#ff5f57]" />
             <span className="size-2 rounded-full bg-[#febc2e]" />
             <span className="size-2 rounded-full bg-[#28c840]" />
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            grok console / openrouter
-          </span>
+          <div>
+            <span className="block text-xs font-semibold uppercase tracking-[0.1em] text-foreground">
+              Grok Playground
+            </span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+              xAI models via OpenRouter
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="status-label">
@@ -476,7 +453,7 @@ export function GrokConsole() {
         <div className="border-b border-border p-4 lg:border-b-0 lg:border-r">
           <label
             htmlFor="grok-model"
-            className="mb-2 block font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground"
+            className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
           >
             xAI model
           </label>
@@ -507,7 +484,7 @@ export function GrokConsole() {
                     {isPremiumModel(model.id) ? (
                       <LockKeyhole className="size-3 text-muted-foreground" />
                     ) : (
-                      <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-success">
+                      <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-success">
                         Basic
                       </span>
                     )}
@@ -534,19 +511,19 @@ export function GrokConsole() {
         />
       </div>
 
-      <div className="grid border-b border-border sm:grid-cols-[1fr_1fr_auto]">
-        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 text-xs sm:border-b-0 sm:border-r">
+      <div className="grid border-b border-border bg-[#0d0d0d] sm:grid-cols-[1fr_1fr_auto]">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-4 text-xs sm:border-b-0 sm:border-r">
           <span className="text-muted-foreground">Free questions</span>
-          <strong className="font-mono font-medium text-foreground">
+          <strong className="text-lg font-semibold tabular-nums text-foreground">
             {freeQuestionsRemaining} / {FREE_QUESTION_LIMIT}
           </strong>
         </div>
-        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 text-xs sm:border-b-0 sm:border-r">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-4 text-xs sm:border-b-0 sm:border-r">
           <span className="inline-flex items-center gap-2 text-muted-foreground">
             <Coins className="size-3.5 text-accent" />
             Credit balance
           </span>
-          <strong className="font-mono font-medium text-foreground">
+          <strong className="text-lg font-semibold tabular-nums text-accent">
             {formatCredits(entitlement.credits)} cr
           </strong>
         </div>
@@ -569,15 +546,15 @@ export function GrokConsole() {
             <div className="grid size-12 place-items-center border border-border bg-surface text-accent">
               <Bot className="size-5" strokeWidth={1.5} />
             </div>
-            <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
+            <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
               {modelShortName(activeModel)} ready
             </p>
             <h3 className="mt-3 max-w-2xl text-2xl font-medium tracking-[-0.03em] text-foreground sm:text-3xl">
               Ask about code, architecture, debugging, or the Grok Build source.
             </h3>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-              Start with three free questions on Grok Build 0.1. Advanced models
-              unlock when a credit pack is active.
+              Ask three questions free as a guest. Sign in to keep your account
+              balance, then add credits when advanced models become available.
             </p>
             <div className="mt-8 grid gap-2 md:grid-cols-2">
               {starterPrompts.map((prompt, index) => (
@@ -590,7 +567,7 @@ export function GrokConsole() {
                   <span className="text-xs leading-5 text-muted-foreground transition-colors group-hover:text-foreground">
                     {prompt}
                   </span>
-                  <span className="font-mono text-[9px] text-accent">0{index + 1}</span>
+                  <span className="text-[10px] font-semibold tabular-nums text-accent">0{index + 1}</span>
                 </button>
               ))}
             </div>
@@ -620,9 +597,15 @@ export function GrokConsole() {
         >
           <span>{error}</span>
           {accessError ? (
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/pricing">View pricing</Link>
-            </Button>
+            entitlement.authenticated ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/pricing">View pricing</Link>
+              </Button>
+            ) : (
+              <Button type="button" variant="ghost" size="sm" onClick={() => openAuth("login")}>
+                Sign in
+              </Button>
+            )
           ) : (
             <Button type="button" variant="ghost" size="sm" onClick={retryLast}>
               <RotateCcw className="size-3.5" />
@@ -646,7 +629,7 @@ export function GrokConsole() {
             aria-label="Message Grok"
           />
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">
-            <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            <div className="flex items-center gap-3 text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
               <span>Enter to send</span>
               <span>Shift + Enter for line</span>
               <span>{input.length}/12000</span>
@@ -671,7 +654,7 @@ export function GrokConsole() {
           <ShieldCheck className="size-3.5 text-success" />
           API key remains server-side. Conversation history stays in this browser.
         </span>
-        <span>Preview limits are stored in this browser and are not server-enforced.</span>
+        <span>Free questions and credits are enforced on the server.</span>
       </div>
     </div>
   );
@@ -690,11 +673,11 @@ function ModelStat({
     <div className="border-b border-border p-4 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
       <div className="flex items-center gap-2">
         <Icon className="size-3.5 text-accent" strokeWidth={1.5} />
-        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </span>
       </div>
-      <p className="mt-2 font-mono text-sm text-foreground">{value}</p>
+      <p className="mt-2 text-sm font-medium tabular-nums text-foreground">{value}</p>
     </div>
   );
 }
@@ -732,7 +715,7 @@ function ChatMessage({
         isUser ? "bg-accent/[0.035]" : "bg-background",
       )}
     >
-      <div className="flex items-center gap-2 self-start font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="flex items-center gap-2 self-start text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
         {isUser ? (
           <UserRound className="size-3.5 text-accent" />
         ) : (

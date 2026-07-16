@@ -144,11 +144,11 @@ const schema = [
     inLanguage: "en-US",
     author: {
       "@type": "Organization",
-      name: "Grok Build Open Source Guide",
+      name: "Grok Building",
     },
     publisher: {
       "@type": "Organization",
-      name: "Grok Build Open Source Guide",
+      name: "Grok Building",
     },
   },
   {
@@ -229,7 +229,7 @@ export default function Home() {
 
               <a
                 href="#overview"
-                className="mt-12 inline-flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="mt-12 inline-flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Read the guide
                 <ArrowDown className="size-3.5" />
@@ -245,7 +245,7 @@ export default function Home() {
 
         <aside className="border-b border-border bg-surface/35" aria-label="Latest update">
           <div className="mx-auto grid max-w-[1440px] gap-4 px-5 py-5 sm:px-8 md:grid-cols-[160px_1fr_auto] md:items-center">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
               Latest update
             </p>
             <p className="text-sm leading-6 text-muted-foreground">
@@ -263,32 +263,42 @@ export default function Home() {
           </div>
         </aside>
 
-        <section id="try-grok" className="border-b border-border">
+        <section id="try-grok" className="grok-playground-zone border-b border-border bg-[#030303]">
           <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:py-28">
-            <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:items-end">
-              <SectionHeading
-                eyebrow="Live xAI models"
-                title="Use Grok without leaving the guide."
-                description="Switch across every currently available xAI model on OpenRouter. Responses stream into a private browser session while the provider key remains on the server."
-              />
-              <div className="grid grid-cols-2 border-l border-t border-border sm:grid-cols-4">
-                {[
-                  ["Provider", "OpenRouter"],
-                  ["Default", "Grok Build 0.1"],
-                  ["Transport", "SSE stream"],
-                  ["Key", "Server-only"],
-                ].map(([label, value]) => (
-                  <div className="border-b border-r border-border p-4" key={label}>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {label}
-                    </p>
-                    <p className="mt-2 text-xs font-medium text-foreground">{value}</p>
-                  </div>
-                ))}
+            <div className="border border-border bg-[#070707] p-5 sm:p-8 lg:p-10">
+              <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
+                <div>
+                  <p className="section-eyebrow">Interactive workspace</p>
+                  <h2 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.045em] text-foreground sm:text-5xl">
+                    Ask Grok. Know the model, limit, and cost before you send.
+                  </h2>
+                  <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+                    This is the live Grok Playground—not another guide block. Start
+                    with three guest questions on Grok Build 0.1, see your remaining
+                    balance at all times, and sign in when you want an account-linked
+                    balance.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 border-l border-t border-border sm:grid-cols-4">
+                  {[
+                    ["Provider", "OpenRouter"],
+                    ["Default", "Grok Build 0.1"],
+                    ["Guest access", "3 questions"],
+                    ["Billing", "Server tracked"],
+                  ].map(([label, value]) => (
+                    <div className="border-b border-r border-border bg-[#0b0b0b] p-4" key={label}>
+                      <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className="mt-2 text-xs font-semibold text-foreground">{value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="mt-10">
-              <GrokConsole />
+
+              <div className="mt-10 border-t-2 border-accent pt-4">
+                <GrokConsole />
+              </div>
             </div>
 
             <div className="mt-20 grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
@@ -310,7 +320,7 @@ export default function Home() {
                     key={item.model}
                     className="grid gap-3 border-b border-border py-6 sm:grid-cols-[52px_0.65fr_1.35fr]"
                   >
-                    <span className="font-mono text-[9px] tracking-[0.16em] text-accent">
+                    <span className="text-[10px] font-semibold tabular-nums tracking-[0.1em] text-accent">
                       0{index + 1}
                     </span>
                     <div>
@@ -419,8 +429,9 @@ export default function Home() {
               <p className="flex gap-3 text-xs leading-6 text-muted-foreground">
                 <LockKeyhole className="mt-1 size-3.5 shrink-0 text-accent" />
                 Model requests use a server-side OpenRouter proxy. The provider
-                key never ships to the browser, and no authentication, billing,
-                or database code is included.
+                key never ships to the browser. Supabase handles email sessions,
+                free-question limits, and the credit ledger; payment checkout is
+                intentionally not enabled yet.
               </p>
             </div>
 
@@ -503,7 +514,7 @@ export default function Home() {
                     key={item}
                     className="grid gap-3 border-b border-border py-5 sm:grid-cols-[54px_1fr]"
                   >
-                    <span className="font-mono text-[9px] tracking-[0.16em] text-accent">
+                    <span className="text-[10px] font-semibold tabular-nums tracking-[0.1em] text-accent">
                       0{index + 1}
                     </span>
                     <p className="text-sm leading-6 text-muted-foreground">{item}</p>
@@ -533,7 +544,7 @@ export default function Home() {
                   key={step.title}
                   className="grid gap-4 border-b border-border py-6 sm:grid-cols-[70px_0.55fr_1.45fr]"
                 >
-                  <span className="font-mono text-[9px] tracking-[0.16em] text-accent">
+                  <span className="text-[10px] font-semibold tabular-nums tracking-[0.1em] text-accent">
                     0{index + 1}
                   </span>
                   <h3 className="text-sm font-medium text-foreground">{step.title}</h3>
@@ -581,7 +592,7 @@ export default function Home() {
                 ],
               ].map(([title, detail], index) => (
                 <article className="border-b border-r border-border p-5 sm:p-6" key={title}>
-                  <span className="font-mono text-[9px] tracking-[0.16em] text-accent">
+                  <span className="text-[10px] font-semibold tabular-nums tracking-[0.1em] text-accent">
                     0{index + 1}
                   </span>
                   <h3 className="mt-8 text-sm font-medium text-foreground">{title}</h3>
@@ -678,7 +689,7 @@ export default function Home() {
                   key={audience.role}
                   className="group grid gap-4 border-b border-border py-6 sm:grid-cols-[70px_0.7fr_1.3fr] sm:items-center"
                 >
-                  <span className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground">
+                  <span className="text-[10px] font-semibold tabular-nums tracking-[0.1em] text-muted-foreground">
                     0{index + 1}
                   </span>
                   <h3 className="text-base font-medium text-foreground transition-colors group-hover:text-accent">
@@ -821,7 +832,7 @@ export default function Home() {
       <footer className="border-t border-border bg-surface/30">
         <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1fr_auto] md:items-end">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.16em] text-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-foreground">
               Grok Build / Open Source Guide
             </p>
             <p className="mt-4 max-w-xl text-xs leading-6 text-muted-foreground">
@@ -866,7 +877,7 @@ function CommandTable({
           key={item.command}
           className="grid grid-cols-[70px_1fr_auto] items-center gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:grid-cols-[100px_1fr_auto] sm:px-5"
         >
-          <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground">
+          <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
             0{index + 1} / {item.label}
           </span>
           <div className="min-w-0 overflow-x-auto font-mono text-xs scrollbar-none">
@@ -895,7 +906,7 @@ function BoundaryCard({
     <article className="min-h-60 border-b border-r border-border bg-surface/40 p-6 sm:p-8">
       <div className="flex items-center justify-between">
         <Icon className="size-5 text-accent" strokeWidth={1.5} />
-        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </span>
       </div>

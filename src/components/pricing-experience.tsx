@@ -8,11 +8,11 @@ import {
   Coins,
   Gauge,
   LockKeyhole,
-  RotateCcw,
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
 
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -22,11 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  readDemoEntitlement,
-  resetDemoEntitlement,
-  writeDemoEntitlement,
-} from "@/lib/client-entitlement";
-import {
   DEFAULT_XAI_MODEL,
   FALLBACK_XAI_MODELS,
   formatContextLength,
@@ -35,8 +30,6 @@ import {
 import {
   CREDIT_PACKS,
   CREDIT_VALUE_USD,
-  EMPTY_DEMO_ENTITLEMENT,
-  FREE_QUESTION_LIMIT,
   PROVIDER_COST_MULTIPLIER,
   TYPICAL_INPUT_TOKENS,
   TYPICAL_OUTPUT_TOKENS,
@@ -47,8 +40,6 @@ import {
   providerRatePerMillion,
   retailRatePerMillion,
   typicalTurnCredits,
-  type CreditPack,
-  type DemoEntitlement,
 } from "@/lib/pricing";
 
 const usageExamples = [
@@ -91,17 +82,17 @@ const pricingFaqs = [
   {
     question: "Do unused credits expire or roll over?",
     answer:
-      "This front-end preview does not expire credits. A production policy still needs to define expiry, rollover, refunds, account recovery, and spending alerts before checkout is enabled.",
+      "Credits are stored on your account and do not expire in this release. Expiry, refunds, and rollover rules will be published before checkout opens.",
   },
   {
     question: "Is a real payment processed on this page?",
     answer:
-      "No. The pack buttons load demo credits into this browser only. There is no checkout, account, database, or payment fulfillment in this release.",
+      "No. Checkout is not open yet, so pack buttons remain disabled and no payment information is collected.",
   },
   {
     question: "Is the current credit limit secure?",
     answer:
-      "No. Browser storage is useful for interaction testing but can be changed or cleared by the visitor. Production access must validate identity and balance on the server, consume credits atomically, record a ledger event, and prevent duplicate charges on retries.",
+      "Yes. Free usage, balances, holds, settlements, and refunds are enforced by the server and recorded in an append-only credit ledger.",
   },
 ];
 
@@ -110,15 +101,12 @@ function modelShortName(model: OpenRouterModel) {
 }
 
 export function PricingExperience() {
+  const { entitlement, openAuth } = useAuth();
   const [models, setModels] = useState<OpenRouterModel[]>(FALLBACK_XAI_MODELS);
   const [modelSource, setModelSource] = useState<"live" | "fallback">("fallback");
   const [selectedModelId, setSelectedModelId] = useState(DEFAULT_XAI_MODEL);
   const [inputTokens, setInputTokens] = useState(TYPICAL_INPUT_TOKENS);
   const [outputTokens, setOutputTokens] = useState(TYPICAL_OUTPUT_TOKENS);
-  const [entitlement, setEntitlement] = useState<DemoEntitlement>(
-    EMPTY_DEMO_ENTITLEMENT,
-  );
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,7 +129,6 @@ export function PricingExperience() {
     }
 
     void loadModels();
-    queueMicrotask(() => setEntitlement(readDemoEntitlement()));
     return () => controller.abort();
   }, []);
 
@@ -161,37 +148,17 @@ export function PricingExperience() {
     };
   }, [inputTokens, outputTokens, selectedModel]);
 
-  function activatePack(pack: CreditPack) {
-    const next: DemoEntitlement = {
-      credits: entitlement.credits + pack.credits,
-      freeQuestionsUsed: entitlement.freeQuestionsUsed,
-      activePack: pack.id,
-      updatedAt: entitlement.updatedAt + 1,
-    };
-    setEntitlement(next);
-    writeDemoEntitlement(next);
-    setNotice(
-      `${formatCredits(pack.credits)} demo credits loaded. Advanced models are now unlocked in this browser.`,
-    );
-  }
-
-  function resetPreview() {
-    resetDemoEntitlement();
-    setEntitlement(EMPTY_DEMO_ENTITLEMENT);
-    setNotice("Demo balance and free-question usage reset.");
-  }
-
   return (
     <main id="top">
       <section className="border-b border-border dot-field">
         <div className="mx-auto max-w-[1440px] px-5 pb-20 pt-16 sm:px-8 lg:pb-28 lg:pt-24">
           <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border py-3">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
-              Pricing prototype
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+              Pricing preview
             </span>
             <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
               <ShieldAlert className="size-3.5 text-accent" />
-              No payment is processed. Limits live in this browser only.
+              No payment is processed. Usage limits and balances are server-enforced.
             </span>
           </div>
 
@@ -202,29 +169,30 @@ export function PricingExperience() {
                 Three questions free. Credits when you need more.
               </h1>
               <p className="mt-7 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                Grok Build 0.1 is the default basic model. Add credits to unlock
-                every advanced xAI model, then pay for the input and output you use.
+                Grok Build 0.1 is the default basic model. The packs below show
+                planned credit pricing; advanced models unlock only when a verified
+                account has a positive server-side balance.
               </p>
             </div>
 
             <div className="border border-border bg-surface/55">
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Browser balance
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Current usage balance
                 </span>
                 <span className="size-2 bg-success" />
               </div>
               <div className="grid grid-cols-2">
                 <div className="border-r border-border p-5">
-                  <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
                     Free left
                   </p>
                   <p className="mt-3 text-3xl font-medium text-foreground">
-                    {Math.max(0, FREE_QUESTION_LIMIT - entitlement.freeQuestionsUsed)}
+                    {entitlement.freeQuestionsRemaining}
                   </p>
                 </div>
                 <div className="p-5">
-                  <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
                     Credits
                   </p>
                   <p className="mt-3 text-3xl font-medium text-foreground">
@@ -239,10 +207,11 @@ export function PricingExperience() {
                     <ArrowRight className="size-3.5" />
                   </Link>
                 </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={resetPreview}>
-                  <RotateCcw className="size-3.5" />
-                  Reset preview
-                </Button>
+                {!entitlement.authenticated ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => openAuth("signup")}>
+                    Create account
+                  </Button>
+                ) : null}
               </div>
             </div>
           </div>
@@ -269,12 +238,12 @@ export function PricingExperience() {
             <article className="flex min-h-[430px] flex-col border-b border-r border-border bg-surface/35 p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-success">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-success">
                     Basic
                   </p>
                   <h3 className="mt-4 text-2xl font-medium">Free</h3>
                 </div>
-                <span className="font-mono text-xs text-muted-foreground">01</span>
+                <span className="text-xs font-semibold tabular-nums text-muted-foreground">01</span>
               </div>
               <p className="mt-8 text-5xl font-medium tracking-[-0.05em]">$0</p>
               <p className="mt-3 text-sm text-muted-foreground">No card required</p>
@@ -296,12 +265,12 @@ export function PricingExperience() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-accent">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-accent">
                       All models
                     </p>
                     <h3 className="mt-4 text-2xl font-medium">{pack.name}</h3>
                   </div>
-                  <span className="font-mono text-xs text-muted-foreground">0{index + 2}</span>
+                  <span className="text-xs font-semibold tabular-nums text-muted-foreground">0{index + 2}</span>
                 </div>
                 <div className="mt-8 flex items-end gap-2">
                   <p className="text-5xl font-medium tracking-[-0.05em]">
@@ -309,7 +278,7 @@ export function PricingExperience() {
                   </p>
                   <span className="pb-1 text-xs text-muted-foreground">one-time</span>
                 </div>
-                <p className="mt-3 font-mono text-xs text-accent">
+                <p className="mt-3 text-xs font-medium tabular-nums text-accent">
                   {formatCredits(pack.credits)} credits
                 </p>
                 <p className="mt-6 text-sm leading-6 text-muted-foreground">
@@ -322,20 +291,14 @@ export function PricingExperience() {
                   type="button"
                   variant={pack.id === "pro" ? "primary" : "outline"}
                   className="mt-auto"
-                  onClick={() => activatePack(pack)}
+                  disabled
                 >
-                  Load demo credits
+                  Checkout coming soon
                 </Button>
               </article>
             ))}
           </div>
 
-          {notice ? (
-            <div className="mt-5 flex items-center gap-3 border-l-2 border-success bg-success/[0.06] px-5 py-4 text-sm text-foreground" role="status">
-              <Check className="size-4 shrink-0 text-success" />
-              {notice}
-            </div>
-          ) : null}
         </div>
       </section>
 
@@ -352,7 +315,7 @@ export function PricingExperience() {
                 converts the result at {formatUsd(CREDIT_VALUE_USD, 3)} per credit.
                 Actual usage depends on the full conversation and returned answer.
               </p>
-              <div className="mt-8 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+              <div className="mt-8 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
                 <span className={modelSource === "live" ? "size-2 bg-success" : "size-2 bg-accent"} />
                 {modelSource === "live" ? "Live OpenRouter rates" : "Verified fallback rates"}
               </div>
@@ -361,7 +324,7 @@ export function PricingExperience() {
             <div className="border border-border bg-background">
               <div className="grid border-b border-border md:grid-cols-3">
                 <div className="border-b border-border p-5 md:border-b-0 md:border-r">
-                  <label htmlFor="price-model" className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <label htmlFor="price-model" className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
                     Model
                   </label>
                   <Select value={selectedModelId} onValueChange={setSelectedModelId}>
@@ -419,7 +382,7 @@ export function PricingExperience() {
 
           <div className="mt-12 overflow-x-auto border border-border">
             <table className="w-full min-w-[860px] border-collapse text-left">
-              <thead className="bg-surface/60 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+              <thead className="bg-surface/60 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                 <tr>
                   <th className="border-b border-r border-border px-5 py-4 font-normal">Model</th>
                   <th className="border-b border-r border-border px-5 py-4 font-normal">Tier</th>
@@ -445,16 +408,16 @@ export function PricingExperience() {
                         {isPremiumModel(model.id) ? "Advanced" : "Basic"}
                       </span>
                     </td>
-                    <td className="border-b border-r border-border px-5 py-5 font-mono text-xs text-muted-foreground">
+                    <td className="border-b border-r border-border px-5 py-5 text-xs tabular-nums text-muted-foreground">
                       {formatContextLength(model.contextLength)}
                     </td>
-                    <td className="border-b border-r border-border px-5 py-5 font-mono text-xs text-muted-foreground">
+                    <td className="border-b border-r border-border px-5 py-5 text-xs tabular-nums text-muted-foreground">
                       {formatUsd(providerRatePerMillion(model.pricing.prompt))} · {formatUsd(providerRatePerMillion(model.pricing.completion))}
                     </td>
-                    <td className="border-b border-r border-border px-5 py-5 font-mono text-xs text-muted-foreground">
+                    <td className="border-b border-r border-border px-5 py-5 text-xs tabular-nums text-muted-foreground">
                       {formatUsd(retailRatePerMillion(model.pricing.prompt))} · {formatUsd(retailRatePerMillion(model.pricing.completion))}
                     </td>
-                    <td className="border-b border-border px-5 py-5 font-mono text-xs text-accent">
+                    <td className="border-b border-border px-5 py-5 text-xs font-medium tabular-nums text-accent">
                       ≈ {formatCredits(typicalTurnCredits(model))} cr
                     </td>
                   </tr>
@@ -477,13 +440,13 @@ export function PricingExperience() {
             <div className="border-t border-border">
               {usageExamples.map((example, index) => (
                 <article key={example.label} className="grid gap-4 border-b border-border py-6 sm:grid-cols-[55px_0.8fr_1fr_auto] sm:items-center">
-                  <span className="font-mono text-[9px] text-accent">0{index + 1}</span>
+                  <span className="text-[10px] font-semibold tabular-nums text-accent">0{index + 1}</span>
                   <div>
                     <h3 className="text-sm font-medium text-foreground">{example.label}</h3>
                     <p className="mt-1 text-xs text-muted-foreground">{example.model}</p>
                   </div>
                   <p className="text-sm text-muted-foreground">{example.context}</p>
-                  <p className="font-mono text-sm text-foreground">{example.credits} credits</p>
+                  <p className="text-sm font-medium tabular-nums text-foreground">{example.credits} credits</p>
                 </article>
               ))}
             </div>
@@ -503,7 +466,7 @@ export function PricingExperience() {
             <div className="border-t border-border">
               {pricingFaqs.map((faq, index) => (
                 <article key={faq.question} className="grid gap-4 border-b border-border py-7 sm:grid-cols-[55px_1fr]">
-                  <span className="font-mono text-[9px] text-accent">0{index + 1}</span>
+                  <span className="text-[10px] font-semibold tabular-nums text-accent">0{index + 1}</span>
                   <div>
                     <h3 className="text-base font-medium text-foreground">{faq.question}</h3>
                     <p className="mt-3 text-sm leading-7 text-muted-foreground">{faq.answer}</p>
@@ -542,7 +505,7 @@ function TokenField({
 }) {
   return (
     <div className={`border-b border-border p-5 md:border-b-0 ${last ? "" : "md:border-r"}`}>
-      <label htmlFor={id} className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+      <label htmlFor={id} className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </label>
       <input
@@ -553,7 +516,7 @@ function TokenField({
         step={100}
         value={value}
         onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
-        className="mt-3 h-10 w-full border border-border bg-surface px-3 font-mono text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent"
+        className="mt-3 h-10 w-full border border-border bg-surface px-3 text-sm tabular-nums text-foreground outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent"
       />
     </div>
   );
@@ -572,11 +535,11 @@ function EstimateStat({
     <div className="border-b border-border p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
       <div className="flex items-center gap-2">
         {accent ? <Coins className="size-3.5 text-accent" /> : <Gauge className="size-3.5 text-muted-foreground" />}
-        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </span>
       </div>
-      <p className={`mt-4 font-mono text-2xl ${accent ? "text-accent" : "text-foreground"}`}>
+      <p className={`mt-4 text-2xl font-semibold tabular-nums ${accent ? "text-accent" : "text-foreground"}`}>
         {value}
       </p>
     </div>
