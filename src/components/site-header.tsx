@@ -49,7 +49,7 @@ export function SiteHeader() {
         >
           <span className="grid size-8 place-items-center border border-border bg-surface transition-colors group-hover:border-accent">
             <Image
-              src="/icon.svg"
+              src="/icon.png"
               alt=""
               width={32}
               height={32}
