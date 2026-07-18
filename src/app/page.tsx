@@ -872,6 +872,18 @@ export default function Home() {
                 height={54}
               />
             </a>
+            <a
+              href="https://www.listbulb.com/tools/grokbuilding"
+              target="_blank"
+              rel="noopener"
+            >
+              <img
+                src="https://www.listbulb.com/featured-on-listbulb-light.svg"
+                alt="Featured on ListBulb"
+                height={240}
+                className="h-auto w-72 max-w-full"
+              />
+            </a>
             <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
               <a className="hover:text-foreground" href={siteConfig.githubUrl} target="_blank" rel="noreferrer">
                 GitHub
