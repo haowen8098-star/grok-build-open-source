@@ -859,16 +859,30 @@ export default function Home() {
               Model responses are routed through OpenRouter.
             </p>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
-            <a className="hover:text-foreground" href={siteConfig.githubUrl} target="_blank" rel="noreferrer">
-              GitHub
+          <div className="flex flex-col items-start gap-6 md:items-end">
+            <a
+              href="https://launchdaily.info/products/grok-build?ref=launchdaily_badge"
+              target="_blank"
+              rel="noopener"
+            >
+              <img
+                src="https://launchdaily.info/badge/grok-build"
+                alt="Featured on LaunchDaily"
+                width={200}
+                height={54}
+              />
             </a>
-            <a className="hover:text-foreground" href={siteConfig.openSourceUrl} target="_blank" rel="noreferrer">
-              xAI source page
-            </a>
-            <a className="hover:text-foreground" href="#top">
-              Back to top
-            </a>
+            <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+              <a className="hover:text-foreground" href={siteConfig.githubUrl} target="_blank" rel="noreferrer">
+                GitHub
+              </a>
+              <a className="hover:text-foreground" href={siteConfig.openSourceUrl} target="_blank" rel="noreferrer">
+                xAI source page
+              </a>
+              <a className="hover:text-foreground" href="#top">
+                Back to top
+              </a>
+            </div>
           </div>
         </div>
       </footer>
