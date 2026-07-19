@@ -881,7 +881,7 @@ export default function Home() {
                 src="https://www.listbulb.com/featured-on-listbulb-light.svg"
                 alt="Featured on ListBulb"
                 height={240}
-                className="h-auto w-72 max-w-full"
+                className="h-auto w-48 max-w-full"
               />
             </a>
             <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
