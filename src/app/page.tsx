@@ -899,6 +899,13 @@ export default function Home() {
               >
                 AI Toolbox
               </a>
+              <a
+                className="hover:text-foreground"
+                href="https://whatisaitools.com/"
+                title="What Is Ai Tools"
+              >
+                What Is Ai Tools
+              </a>
               <a className="hover:text-foreground" href="#top">
                 Back to top
               </a>
