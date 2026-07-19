@@ -906,13 +906,6 @@ export default function Home() {
               >
                 What Is Ai Tools
               </a>
-              <a
-                className="hover:text-foreground"
-                href="https://SeekAIs.com/"
-                title="SeekAIs"
-              >
-                SeekAIs - AI Tools Directory
-              </a>
               <a className="hover:text-foreground" href="#top">
                 Back to top
               </a>
