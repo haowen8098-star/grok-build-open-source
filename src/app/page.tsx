@@ -891,6 +891,14 @@ export default function Home() {
               <a className="hover:text-foreground" href={siteConfig.openSourceUrl} target="_blank" rel="noreferrer">
                 xAI source page
               </a>
+              <a
+                className="hover:text-foreground"
+                href="https://aitoolbox.fyi"
+                target="_blank"
+                rel="noopener"
+              >
+                AI Toolbox
+              </a>
               <a className="hover:text-foreground" href="#top">
                 Back to top
               </a>
