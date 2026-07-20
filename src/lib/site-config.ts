@@ -18,6 +18,7 @@ export const siteConfig = {
     { label: "Why Open Source", href: "/#why-open-source" },
     { label: "How It Works", href: "/#how-it-works" },
     { label: "Build from Source", href: "/#build-from-source" },
+    { label: "Blog", href: "/blog" },
     { label: "Pricing", href: "/pricing" },
     { label: "FAQ", href: "/#faq" },
   ],

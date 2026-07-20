@@ -16,5 +16,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    {
+      url: siteConfig.url + "/blog",
+      lastModified: new Date("2026-07-20T00:00:00.000Z"),
+      changeFrequency: "weekly",
+      priority: 0.75,
+    },
+    {
+      url: siteConfig.url + "/blog/what-is-an-ai-agent-framework",
+      lastModified: new Date("2026-07-20T00:00:00.000Z"),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
   ];
 }
