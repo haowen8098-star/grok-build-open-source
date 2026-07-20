@@ -7,7 +7,7 @@ export const siteConfig = {
   shortName: "Grok Building",
   description:
     "A source-backed guide to Grok Build open source with a live, switchable xAI model console powered securely through OpenRouter.",
-  url: (configuredUrl || "https://www.grokbuilding.com").replace(/\/$/, ""),
+  url: (configuredUrl || "https://www.grokbuilding.com").trim().replace(/\/+$/, ""),
   githubUrl: "https://github.com/xai-org/grok-build",
   installUrl: "https://x.ai/cli",
   openSourceUrl: "https://x.ai/open-source",
