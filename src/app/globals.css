@@ -94,6 +94,8 @@ button {
 }
 
 .site-grid {
+  position: relative;
+  isolation: isolate;
   background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
   background-size: 26px 26px;
 }
@@ -101,9 +103,15 @@ button {
 .site-grid::after {
   position: absolute;
   inset: 0;
+  z-index: 0;
   content: "";
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(5, 5, 5, 0.3), rgba(5, 5, 5, 0.82));
+}
+
+.site-grid > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-glow {

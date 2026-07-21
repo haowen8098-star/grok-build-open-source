@@ -64,12 +64,18 @@ type ConsoleStatus = "idle" | "connecting" | "streaming";
 const STORAGE_KEY = "grok-console-session-v1";
 const MODEL_STORAGE_KEY = "grok-console-model-v1";
 
-const starterPrompts = [
+const defaultStarterPrompts = [
   "Explain how the Grok Build agent harness is structured.",
   "Review this Rust function for correctness and performance.",
   "Create a migration plan from a closed coding agent to Grok Build.",
   "Show me how to design an MCP server for repository tools.",
 ];
+
+type GrokConsoleProps = {
+  initialModelId?: string;
+  lockModel?: boolean;
+  starterPrompts?: readonly string[];
+};
 
 function createMessage(
   role: ConsoleMessage["role"],
@@ -100,16 +106,21 @@ function modelShortName(model: OpenRouterModel) {
   return model.name.replace(/^xAI:\s*/i, "");
 }
 
-export function GrokConsole() {
+export function GrokConsole({
+  initialModelId = DEFAULT_XAI_MODEL,
+  lockModel = false,
+  starterPrompts = defaultStarterPrompts,
+}: GrokConsoleProps = {}) {
   const { entitlement, openAuth, refreshEntitlement } = useAuth();
   const [models, setModels] = useState<OpenRouterModel[]>(FALLBACK_XAI_MODELS);
   const [modelSource, setModelSource] = useState<"live" | "fallback">("fallback");
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_XAI_MODEL);
+  const [selectedModel, setSelectedModel] = useState(initialModelId);
   const [messages, setMessages] = useState<ConsoleMessage[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<ConsoleStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [lockedModelUnavailable, setLockedModelUnavailable] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const chatViewportRef = useRef<HTMLDivElement | null>(null);
   const restoredPremiumModelRef = useRef<string | null>(null);
@@ -117,6 +128,7 @@ export function GrokConsole() {
   const activeModel = useMemo(
     () =>
       models.find((model) => model.id === selectedModel) ||
+      FALLBACK_XAI_MODELS.find((model) => model.id === selectedModel) ||
       FALLBACK_XAI_MODELS.find((model) => model.id === DEFAULT_XAI_MODEL) ||
       FALLBACK_XAI_MODELS[0],
     [models, selectedModel],
@@ -149,6 +161,11 @@ export function GrokConsole() {
         if (payload.data?.length) {
           setModels(payload.data);
           setModelSource(payload.source === "live" ? "live" : "fallback");
+          setLockedModelUnavailable(
+            lockModel &&
+              payload.source === "live" &&
+              !payload.data.some((model) => model.id === initialModelId),
+          );
         }
       } catch {
         // The static fallback keeps the selector usable if the directory is unavailable.
@@ -157,7 +174,7 @@ export function GrokConsole() {
 
     void loadModels();
     return () => controller.abort();
-  }, []);
+  }, [initialModelId, lockModel]);
 
   useEffect(() => {
     let restoredMessages: ConsoleMessage[] = [];
@@ -182,7 +199,7 @@ export function GrokConsole() {
 
     queueMicrotask(() => {
       setMessages(restoredMessages);
-      if (restoredModel) {
+      if (restoredModel && !lockModel) {
         if (isPremiumModel(restoredModel)) {
           restoredPremiumModelRef.current = restoredModel;
         } else {
@@ -191,14 +208,14 @@ export function GrokConsole() {
       }
       setHydrated(true);
     });
-  }, []);
+  }, [lockModel]);
 
   useEffect(() => {
     const restoredModel = restoredPremiumModelRef.current;
-    if (!hydrated || !premiumUnlocked || !restoredModel) return;
+    if (lockModel || !hydrated || !premiumUnlocked || !restoredModel) return;
     restoredPremiumModelRef.current = null;
     queueMicrotask(() => setSelectedModel(restoredModel));
-  }, [hydrated, premiumUnlocked]);
+  }, [hydrated, lockModel, premiumUnlocked]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -206,14 +223,19 @@ export function GrokConsole() {
   }, [hydrated, messages]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || lockModel) return;
     localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
-  }, [hydrated, selectedModel]);
+  }, [hydrated, lockModel, selectedModel]);
 
   useEffect(() => {
-    if (!hydrated || premiumUnlocked || !isPremiumModel(selectedModel)) return;
+    if (
+      lockModel ||
+      !hydrated ||
+      premiumUnlocked ||
+      !isPremiumModel(selectedModel)
+    ) return;
     queueMicrotask(() => setSelectedModel(DEFAULT_XAI_MODEL));
-  }, [hydrated, premiumUnlocked, selectedModel]);
+  }, [hydrated, lockModel, premiumUnlocked, selectedModel]);
 
   useEffect(() => {
     const viewport = chatViewportRef.current;
@@ -229,7 +251,7 @@ export function GrokConsole() {
   }, []);
 
   async function requestChat(conversation: ConsoleMessage[]) {
-    if (isGenerating || conversation.length === 0) return;
+    if (isGenerating || lockedModelUnavailable || conversation.length === 0) return;
 
     const assistant = createMessage("assistant", "", selectedModel);
     const controller = new AbortController();
@@ -337,6 +359,11 @@ export function GrokConsole() {
   }
 
   function canSendMessage() {
+    if (lockedModelUnavailable) {
+      setError(`${modelShortName(activeModel)} is currently unavailable in the live model directory.`);
+      return false;
+    }
+
     if (activeModelIsPremium && !premiumUnlocked) {
       setError(
         entitlement.authenticated
@@ -430,10 +457,18 @@ export function GrokConsole() {
             <span
               className={cn(
                 "size-1.5 rounded-full",
-                modelSource === "live" ? "bg-success" : "bg-accent",
+                lockedModelUnavailable
+                  ? "bg-destructive"
+                  : modelSource === "live"
+                    ? "bg-success"
+                    : "bg-accent",
               )}
             />
-            {modelSource === "live" ? "Live catalog" : "Cached catalog"}
+            {lockedModelUnavailable
+              ? "Model unavailable"
+              : modelSource === "live"
+                ? "Live catalog"
+                : "Cached catalog"}
           </span>
           {messages.length > 0 ? (
             <Button
@@ -451,48 +486,59 @@ export function GrokConsole() {
 
       <div className="grid border-b border-border lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(120px,0.4fr))]">
         <div className="border-b border-border p-4 lg:border-b-0 lg:border-r">
-          <label
-            htmlFor="grok-model"
-            className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
-          >
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             xAI model
-          </label>
-          <Select
-            value={selectedModel}
-            onValueChange={(value) => {
-              if (isPremiumModel(value) && !premiumUnlocked) {
-                setError("Advanced models require credits. Choose a pack on the pricing page.");
-                return;
-              }
-              setError(null);
-              setSelectedModel(value);
-            }}
-            disabled={isGenerating}
-          >
-            <SelectTrigger id="grok-model" aria-label="Select xAI model">
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((model) => (
-                <SelectItem
-                  key={model.id}
-                  value={model.id}
-                  disabled={isPremiumModel(model.id) && !premiumUnlocked}
-                >
-                  <span className="flex items-center gap-2">
-                    {modelShortName(model)}
-                    {isPremiumModel(model.id) ? (
-                      <LockKeyhole className="size-3 text-muted-foreground" />
-                    ) : (
-                      <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-success">
-                        Basic
-                      </span>
-                    )}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          </div>
+          {lockModel ? (
+            <div className="flex h-9 items-center justify-between gap-3 border border-border bg-background px-3 text-sm text-foreground">
+              <span className="truncate">{modelShortName(activeModel)}</span>
+              <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
+                <LockKeyhole className="size-3" /> Fixed
+              </span>
+            </div>
+          ) : (
+            <Select
+              value={selectedModel}
+              onValueChange={(value) => {
+                if (isPremiumModel(value) && !premiumUnlocked) {
+                  setError("Advanced models require credits. Choose a pack on the pricing page.");
+                  return;
+                }
+                setError(null);
+                setSelectedModel(value);
+              }}
+              disabled={isGenerating}
+            >
+              <SelectTrigger id="grok-model" aria-label="Select xAI model">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((model) => (
+                  <SelectItem
+                    key={model.id}
+                    value={model.id}
+                    disabled={isPremiumModel(model.id) && !premiumUnlocked}
+                  >
+                    <span className="flex items-center gap-2">
+                      {modelShortName(model)}
+                      {isPremiumModel(model.id) ? (
+                        <LockKeyhole className="size-3 text-muted-foreground" />
+                      ) : (
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-success">
+                          Basic
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {lockedModelUnavailable ? (
+            <p className="mt-2 text-xs leading-5 text-destructive" role="status">
+              This exact model is currently unavailable. Sending is disabled; no fallback model will answer instead.
+            </p>
+          ) : null}
         </div>
         <ModelStat
           icon={Cpu}
@@ -562,7 +608,8 @@ export function GrokConsole() {
                   type="button"
                   key={prompt}
                   onClick={() => sendMessage(undefined, prompt)}
-                  className="group flex min-h-20 items-start justify-between gap-4 border border-border bg-surface/40 p-4 text-left transition-colors hover:border-accent hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  disabled={lockedModelUnavailable}
+                  className="group flex min-h-20 items-start justify-between gap-4 border border-border bg-surface/40 p-4 text-left transition-colors hover:border-accent hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <span className="text-xs leading-5 text-muted-foreground transition-colors group-hover:text-foreground">
                     {prompt}
@@ -624,7 +671,7 @@ export function GrokConsole() {
             placeholder={"Message " + modelShortName(activeModel) + "…"}
             maxLength={12000}
             rows={3}
-            disabled={isGenerating}
+            disabled={isGenerating || lockedModelUnavailable}
             className="min-h-24 w-full resize-none bg-transparent px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
             aria-label="Message Grok"
           />
@@ -640,7 +687,11 @@ export function GrokConsole() {
                 Stop
               </Button>
             ) : (
-              <Button type="submit" size="sm" disabled={!input.trim()}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!input.trim() || lockedModelUnavailable}
+              >
                 <Send className="size-3.5" />
                 Send
               </Button>

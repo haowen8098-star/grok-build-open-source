@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Terminal,
 } from "lucide-react";
+import Link from "next/link";
 
 import { ArchitectureFlow } from "@/components/architecture-flow";
 import { CapabilityGrid } from "@/components/capability-grid";
@@ -61,23 +62,27 @@ const verificationPoints = [
 const modelDecisionGuide = [
   {
     model: "Grok Build 0.1",
+    href: null,
     use: "Start here for code generation, debugging, repository planning, and questions about agent workflows.",
     tradeoff: "Focused coding option with the lowest current xAI input and output rates in the live catalog.",
   },
   {
     model: "Grok 4.5",
+    href: "/models/grok-4-5",
     use: "Use for difficult architecture decisions, deeper reasoning, or code review where answer quality matters more than price.",
     tradeoff: "Higher current output cost than Grok Build 0.1; keep the prompt focused.",
   },
   {
-    model: "Grok 4.3",
-    use: "Useful for long specifications, broad repository context, and comparisons that need more source material in one request.",
-    tradeoff: "A larger context window does not remove the need to trim irrelevant logs and generated files.",
+    model: "Grok 4.20",
+    href: "/models/grok-4-20",
+    use: "Use the standard model for long specifications, complex analysis, and comparing several solution paths.",
+    tradeoff: "The standard and Multi-Agent routes are distinct; confirm the exact live route before sending.",
   },
   {
-    model: "Grok 4.20 / Multi-Agent",
-    use: "Evaluate for very long inputs, decomposed analysis, and tasks that benefit from exploring several solution paths.",
-    tradeoff: "Long-context requests can still become expensive; confirm the live model price before sending.",
+    model: "Grok 4.3",
+    href: "/models/grok-4-3",
+    use: "Useful for long specifications, broad repository context, and comparisons that need more source material in one request.",
+    tradeoff: "A larger context window does not remove the need to trim irrelevant logs and generated files.",
   },
 ];
 
@@ -319,7 +324,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-20 grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
+            <div id="model-guide" className="mt-20 scroll-mt-24 grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
               <div>
                 <p className="section-eyebrow">Model selection</p>
                 <h3 className="mt-4 text-2xl font-medium tracking-[-0.03em] text-foreground sm:text-3xl">
@@ -342,7 +347,19 @@ export default function Home() {
                       0{index + 1}
                     </span>
                     <div>
-                      <h4 className="text-sm font-medium text-foreground">{item.model}</h4>
+                      <h4 className="text-sm font-medium text-foreground">
+                        {item.href ? (
+                          <Link
+                            href={item.href}
+                            className="inline-flex items-center gap-2 underline decoration-accent underline-offset-4 hover:text-accent"
+                          >
+                            {item.model}
+                            <ArrowRight className="size-3.5" />
+                          </Link>
+                        ) : (
+                          item.model
+                        )}
+                      </h4>
                       <p className="mt-2 text-xs leading-5 text-muted-foreground">
                         {item.tradeoff}
                       </p>

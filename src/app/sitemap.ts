@@ -28,5 +28,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    ...["grok-4-5", "grok-4-20", "grok-4-3"].map((slug) => ({
+      url: siteConfig.url + "/models/" + slug,
+      lastModified: new Date("2026-07-21T00:00:00.000Z"),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    })),
   ];
 }
