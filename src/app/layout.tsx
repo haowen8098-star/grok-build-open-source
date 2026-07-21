@@ -19,6 +19,8 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const googleAnalyticsId = "G-99B6NYYJ7N";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: "Grok Build Open Source: Source Code, Setup & How It Works",
@@ -85,6 +87,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script
+          async
+          src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${googleAnalyticsId}');
+            `,
+          }}
+        />
+      </head>
       <body className={geistSans.variable + " " + geistMono.variable}>
         <AuthProvider>
           <TooltipProvider>{children}</TooltipProvider>
