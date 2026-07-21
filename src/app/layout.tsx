@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 
 import { AuthProvider } from "@/components/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -88,20 +89,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <script
-          async
+        <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`}
+          strategy="beforeInteractive"
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${googleAnalyticsId}');
-            `,
-          }}
-        />
+        <Script id="google-analytics" strategy="beforeInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${googleAnalyticsId}');
+          `}
+        </Script>
       </head>
       <body className={geistSans.variable + " " + geistMono.variable}>
         <AuthProvider>
